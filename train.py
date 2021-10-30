@@ -59,8 +59,7 @@ def _info(opt):
 
 def main(opt):
     _info(opt)
-    #opt.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    opt.device = torch.device("cpu")
+    opt.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_env = Env("train", opt)
     eval_env = Env("eval", opt)
     agent = DdqnAgent(train_env.action_space.n)
