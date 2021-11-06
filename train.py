@@ -32,13 +32,12 @@ def eval(agent, env, crt_step, opt):
     """
     episodic_returns = []
     for _ in range(opt.eval_episodes):
-        obs, done = env.reset(), False
-        obs = obs.reshape(1, obs.size(0), obs.size(1), obs.size(2))
+        obs, done = env.reset().unsqueeze(0), False
         episodic_returns.append(0)
         while not done:
             action = agent.act(obs)
-            obs, reward, done, info = env.step(action)
-            obs = obs.reshape(1, obs.size(0), obs.size(1), obs.size(2))
+            obs, reward, done, _ = env.step(action)
+            obs = obs.unsqueeze(0)
             episodic_returns[-1] += reward
 
     _save_stats(episodic_returns, crt_step, opt.logdir)
@@ -66,7 +65,6 @@ def main(opt):
     opt.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     env = Env("train", opt)
     eval_env = Env("eval", opt)
-    
     warmup_steps = opt.steps / 10
 
     if opt.net == 'dqn':
@@ -116,11 +114,11 @@ def main(opt):
         if done:
             ep_cnt += 1
             state, done = env.reset().clone(), False
-            state = state.reshape(1, state.size(0), state.size(1), state.size(2))
+            state = state.unsqueeze(0)
 
         action = agent.step(state)
-        state_, reward, done, info = env.step(action)
-        state_ = state_.reshape(1, state_.size(0), state_.size(1), state_.size(2))
+        state_, reward, done, _ = env.step(action)
+        state_ = state_.unsqueeze(0)
 
         agent.learn(state, action, reward, state_, done)
 
@@ -131,7 +129,6 @@ def main(opt):
         if step_cnt % opt.eval_interval == 0:
             print("[{:06d}] progress={:03.2f}%.".format(step_cnt, 100.0 * step_cnt / opt.steps))
 
-        # evaluate once in a while
         if step_cnt % opt.eval_interval == 0 and step_cnt >= warmup_steps:
             eval(agent, eval_env, step_cnt, opt)
 

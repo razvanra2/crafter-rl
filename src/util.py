@@ -4,16 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 def get_epsilon_schedule(start=1.0, end=0.1, steps=500):
-    """ Returns either:
-        - a generator of epsilon values
-        - a function that receives the current step and returns an epsilon
-
-        The epsilon values returned by the generator or function need
-        to be degraded from the `start` value to the `end` within the number
-        of `steps` and then continue returning the `end` value indefinetly.
-
-        You can pick any schedule (exp, poly, etc.). I tested with linear decay.
-    """
     eps_step = (start - end) / steps
     def frange(start, end, step):
         x = start
@@ -21,10 +11,6 @@ def get_epsilon_schedule(start=1.0, end=0.1, steps=500):
             yield x
             x -= step
     return itertools.chain(frange(start, end, eps_step), itertools.repeat(end))
-
-class View(nn.Module):
-    def forward(self, x):
-        return x.view(x.size(0), -1)
 
 class NnModel(nn.Module):
     def __init__(self, action_num, input_ch=4, lin_size=32):
@@ -76,5 +62,5 @@ class DuelingNnModel(nn.Module):
         values = self.value_stream(x)
         advantages = self.advantage_stream(x)
         qvals = values + (advantages - advantages.mean())
-        
+
         return qvals
