@@ -7,10 +7,11 @@ import torch.optim as O
 
 from rich import print
 from src.crafter_wrapper import Env
-from src.util import get_epsilon_schedule, get_estimator
+from src.util import DuelingNnModel, get_epsilon_schedule, NnModel
 from src.memory import ReplayMemory
 from src.dqn_agent import DQN
 from src.ddqn_agent import DoubleDQN
+from src.dueling_agent import DuelingDQN
 from src.random_agent import RandomAgent
 
 def _save_stats(episodic_returns, crt_step, path):
@@ -65,11 +66,12 @@ def main(opt):
     opt.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     env = Env("train", opt)
     eval_env = Env("eval", opt)
-    net = get_estimator(env.action_space.n, opt.device)
+    
     warmup_steps = opt.steps / 10
 
     if opt.net == 'dqn':
         print("Using DQN net")
+        net = NnModel(env.action_space.n).to(opt.device)
         agent = DQN(
             net,
             ReplayMemory(opt.device, size=1000, batch_size=32),
@@ -81,7 +83,21 @@ def main(opt):
         )
     elif opt.net == 'ddqn':
         print("Using Double DQN net")
+        net = NnModel(env.action_space.n).to(opt.device)
         agent = DoubleDQN(
+            net,
+            ReplayMemory(opt.device, size=1000, batch_size=32),
+            O.Adam(net.parameters(), lr=1e-3, eps=1e-4),
+            get_epsilon_schedule(start=1.0, end=0.1, steps=opt.steps),
+            env.action_space.n,
+            warmup_steps=warmup_steps,
+            update_steps=1,
+            update_target_steps=4
+        )
+    elif opt.net == 'dddqn':
+        print("Using Dueling DDQN net")
+        net = DuelingNnModel(env.action_space.n).to(opt.device)
+        agent = DuelingDQN(
             net,
             ReplayMemory(opt.device, size=1000, batch_size=32),
             O.Adam(net.parameters(), lr=1e-3, eps=1e-4),
