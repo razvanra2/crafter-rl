@@ -41,8 +41,52 @@ def read_crafter_logs(indir, clip=True):
 
         df = pd.concat(runs, ignore_index=True)
         sns.lineplot(x="step", y="avg_return", data=df, legend="full", label = subdirpath.split("/",1)[1])
-    plt.savefig("out_figs/comparative_plot.png")
-    plt.show()
+    plt.savefig("out_figs/comparative_plot_avg.png")
+    plt.cla()
+
+    for subdirpath in agent_subdirs:
+        subdir = pathlib.Path(subdirpath)
+        filenames = sorted(list(subdir.glob("**/*/eval_stats.pkl")))
+
+        runs = []
+        for idx, fn in enumerate(filenames):
+            df = pd.DataFrame(columns=["step", "min_return"], data=read_pkl(fn))
+            df["run"] = idx
+            runs.append(df)
+
+        # some runs might not have finished and you might want to clip all of them
+        # to the shortest one.
+        if clip:
+            min_len = min([len(run) for run in runs])
+            runs = [run[:min_len] for run in runs]
+            print(f"Clipped al runs to {min_len}.")
+
+        df = pd.concat(runs, ignore_index=True)
+        sns.lineplot(x="step", y="min_return", data=df, legend="full", label = subdirpath.split("/",1)[1])
+    plt.savefig("out_figs/comparative_plot_min.png")
+    plt.cla()
+
+    for subdirpath in agent_subdirs:
+        subdir = pathlib.Path(subdirpath)
+        filenames = sorted(list(subdir.glob("**/*/eval_stats.pkl")))
+
+        runs = []
+        for idx, fn in enumerate(filenames):
+            df = pd.DataFrame(columns=["step", "max_return"], data=read_pkl(fn))
+            df["run"] = idx
+            runs.append(df)
+
+        # some runs might not have finished and you might want to clip all of them
+        # to the shortest one.
+        if clip:
+            min_len = min([len(run) for run in runs])
+            runs = [run[:min_len] for run in runs]
+            print(f"Clipped al runs to {min_len}.")
+
+        df = pd.concat(runs, ignore_index=True)
+        sns.lineplot(x="step", y="max_return", data=df, legend="full", label = subdirpath.split("/",1)[1])
+    plt.savefig("out_figs/comparative_plot_max.png")
+    plt.cla()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -19,3 +19,9 @@ class RandomAgent:
     def act(self, observation):
         """ Since this is a random agent the observation is not used."""
         return self.policy.sample().item()
+
+    def step(self, state):
+        return self.policy.sample().item()
+
+    def learn(self, state, action, reward, state_, done):
+        pass

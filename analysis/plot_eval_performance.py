@@ -24,7 +24,7 @@ def read_crafter_logs(indirpath, clip=True):
     filenames = sorted(list(indir.glob("**/*/eval_stats.pkl")))
     runs = []
     for idx, fn in enumerate(filenames):
-        df = pd.DataFrame(columns=["step", "avg_return"], data=read_pkl(fn))
+        df = pd.DataFrame(columns=["step", "avg_return", "min_return", "max_return"], data=read_pkl(fn))
         df["run"] = idx
         runs.append(df)
 
@@ -37,9 +37,11 @@ def read_crafter_logs(indirpath, clip=True):
 
     # plot
     df = pd.concat(runs, ignore_index=True)
-    sns.lineplot(x="step", y="avg_return", data=df)
-    plt.savefig(f'out_figs/{indirpath.split("/",1)[1]}_plot.png')
-    plt.show()
+    sns.lineplot(x="step", y="avg_return", data=df, label="avg r")
+    sns.lineplot(x="step", y="min_return", data=df, label="min r")
+    sns.lineplot(x="step", y="max_return", data=df, label="max_r")
+    plt.savefig(f'out_figs/single_{indirpath.split("/",1)[1]}_plot.png')
+    plt.cla()
 
 
 if __name__ == "__main__":

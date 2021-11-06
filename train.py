@@ -3,25 +3,26 @@ import pickle
 from pathlib import Path
 
 import torch
+import torch.optim as O
 
+from rich import print
 from src.crafter_wrapper import Env
+from src.util import get_epsilon_schedule, get_estimator
+from src.memory import ReplayMemory
+from src.dqn_agent import DQN
+from src.ddqn_agent import DoubleDQN
 from src.random_agent import RandomAgent
-from src.ddqn_agent import DdqnAgent
-from src.models import DQN
-
-RUN_RANDOM = False
 
 def _save_stats(episodic_returns, crt_step, path):
     # save the evaluation stats
     episodic_returns = torch.tensor(episodic_returns)
     avg_return = episodic_returns.mean().item()
-    print(
-        "[{:06d}] eval results: R/ep={:03.2f}, std={:03.2f}.".format(
-            crt_step, avg_return, episodic_returns.std().item()
-        )
-    )
+    min_return = episodic_returns.min().item()
+    max_return = episodic_returns.max().item()
+    ep_str = "{number:06}".format(number=crt_step)
+    print(f"[{ep_str}] R/ep={avg_return}, std={episodic_returns.std().item()} eval results: {episodic_returns}.")
     with open(path + "/eval_stats.pkl", "ab") as f:
-        pickle.dump({"step": crt_step, "avg_return": avg_return}, f)
+        pickle.dump({"step": crt_step, "avg_return": avg_return, "min_return": min_return, "max_return": max_return}, f)
 
 
 def eval(agent, env, crt_step, opt):
@@ -31,10 +32,12 @@ def eval(agent, env, crt_step, opt):
     episodic_returns = []
     for _ in range(opt.eval_episodes):
         obs, done = env.reset(), False
+        obs = obs.reshape(1, obs.size(0), obs.size(1), obs.size(2))
         episodic_returns.append(0)
         while not done:
             action = agent.act(obs)
             obs, reward, done, info = env.step(action)
+            obs = obs.reshape(1, obs.size(0), obs.size(1), obs.size(2))
             episodic_returns[-1] += reward
 
     _save_stats(episodic_returns, crt_step, opt.logdir)
@@ -60,42 +63,61 @@ def _info(opt):
 def main(opt):
     _info(opt)
     opt.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_env = Env("train", opt)
+    env = Env("train", opt)
     eval_env = Env("eval", opt)
-    agent = DdqnAgent(train_env.action_space.n)
+    net = get_estimator(env.action_space.n, opt.device)
+    warmup_steps = opt.steps / 10
 
-    # main loop
-    if RUN_RANDOM:
-        ep_cnt, step_cnt, done = 0, 0, True
-        while step_cnt < opt.steps or not done:
-            if done:
-                ep_cnt += 1
-                obs, done = train_env.reset(), False
-
-            action = agent.act(obs)
-            obs, reward, done, info = train_env.step(action)
-
-            step_cnt += 1
-
-            # evaluate once in a while
-            if step_cnt % opt.eval_interval == 0:
-                eval(agent, eval_env, step_cnt, opt)
-    else:
-        agent.learn(
-            env=train_env,                   # gym environmnet
-            Network=DQN,                     # neural network
-            eval=eval,                       # the evaluation callback
-            eval_env=eval_env,
-            opt=opt,
-            batch_size=32,                   # q-network update batch size
-            gamma=0.9,                      # discount factor
-            replay_buffer_size=100000,       # size of the replay buffer
-            learning_starts=opt.steps/4,     # number of initial random actions (exploration)
-            learning_freq=6,                 # frequency of the update
-            target_update_freq=10,           # number of gradient steps after which the target network is updated
-            max_allowed_steps=opt.steps,
-            log_every=opt.eval_interval      # logging interval. returns the mean reward per episode.
+    if opt.net == 'dqn':
+        print("Using DQN net")
+        agent = DQN(
+            net,
+            ReplayMemory(opt.device, size=1000, batch_size=32),
+            O.Adam(net.parameters(), lr=1e-3, eps=1e-4),
+            get_epsilon_schedule(start=1.0, end=0.1, steps=opt.steps),
+            env.action_space.n,
+            warmup_steps=warmup_steps,
+            update_steps=1,
         )
+    elif opt.net == 'ddqn':
+        print("Using Double DQN net")
+        agent = DoubleDQN(
+            net,
+            ReplayMemory(opt.device, size=1000, batch_size=32),
+            O.Adam(net.parameters(), lr=1e-3, eps=1e-4),
+            get_epsilon_schedule(start=1.0, end=0.1, steps=opt.steps),
+            env.action_space.n,
+            warmup_steps=warmup_steps,
+            update_steps=1,
+            update_target_steps=4
+        )
+    elif opt.net == 'rand':
+        print("Using random agent")
+        agent = RandomAgent(env.action_space.n)
+
+    ep_cnt, step_cnt, done = 0, 0, True
+    while step_cnt < opt.steps or not done:
+        if done:
+            ep_cnt += 1
+            state, done = env.reset().clone(), False
+            state = state.reshape(1, state.size(0), state.size(1), state.size(2))
+
+        action = agent.step(state)
+        state_, reward, done, info = env.step(action)
+        state_ = state_.reshape(1, state_.size(0), state_.size(1), state_.size(2))
+
+        agent.learn(state, action, reward, state_, done)
+
+        state = state_.clone()
+
+        step_cnt += 1
+
+        if step_cnt % opt.eval_interval == 0:
+            print("[{:06d}] progress={:03.2f}%.".format(step_cnt, 100.0 * step_cnt / opt.steps))
+
+        # evaluate once in a while
+        if step_cnt % opt.eval_interval == 0 and step_cnt >= warmup_steps:
+            eval(agent, eval_env, step_cnt, opt)
 
 def get_options():
     """ Configures a parser. Extend this with all the best performing hyperparameters of
@@ -130,10 +152,18 @@ def get_options():
     parser.add_argument(
         "--eval-episodes",
         type=int,
-        default=20,
+        default=5,
         metavar="N",
         help="Number of evaluation episodes to average over",
     )
+    parser.add_argument(
+        "--net",
+        type=str,
+        default='dqn',
+        metavar="NET",
+        help="Type of DQN",
+    )
+
     return parser.parse_args()
 
 

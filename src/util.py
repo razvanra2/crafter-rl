@@ -1,89 +1,41 @@
-import numpy as np
-import random
-import torch
+import itertools
+from copy import deepcopy
 import torch.nn as nn
-import torch.tensor as Tensor
-from typing import Union, Tuple
+import torch.optim as O
 
+def get_epsilon_schedule(start=1.0, end=0.1, steps=500):
+    """ Returns either:
+        - a generator of epsilon values
+        - a function that receives the current step and returns an epsilon
 
-def eps_generator(start_eps: float = 1.0, end_eps: float = 0.1, plateau: int = 1e4):
+        The epsilon values returned by the generator or function need
+        to be degraded from the `start` value to the `end` within the number
+        of `steps` and then continue returning the `end` value indefinetly.
+
+        You can pick any schedule (exp, poly, etc.). I tested with linear decay.
     """
-    Epsilon scheduler
-    
-    Parameters
-    ----------
-    start_eps: 
-        Epsilon starting value
-    end_eps: 
-        Epsilon ending value
-    plateau: 
-        Iteration to plateau epsilon to end_eps
+    eps_step = (start - end) / steps
+    def frange(start, end, step):
+        x = start
+        while x > end:
+            yield x
+            x -= step
+    return itertools.chain(frange(start, end, eps_step), itertools.repeat(end))
 
-    Returns
-    -------
-    Linear decayed epsilon
-    """
-    crt_iter = -1
+class View(nn.Module):
+    def forward(self, x):
+        return x.view(x.size(0), -1)
 
-    while True:
-        crt_iter += 1
-        frac = min(crt_iter / plateau, 1)
-        eps = (1 - frac) * start_eps + frac * end_eps
-        yield eps
-
-
-def select_epsilon_greedy_action(
-        Q: nn.Module,
-        s: Tensor,
-        eps: float,
-        with_val: bool = False) -> Union[int, Tuple[int, float]]:
-    """
-    Select epsilon greedy action
-
-    Parameters
-    ----------
-    Q
-        Q network
-    s
-        State tensor
-    eps
-        Epsilon value
-
-    Returns
-    -------
-    Epsilon greedy action
-    """
-    rand = np.random.rand()
-
-    # compute Q-vals
-    with torch.no_grad():
-        Q_vals = Q(s)
-
-    qval, act = Q_vals.max(dim=1)
-    qval, act = qval.item(), act.item()
-
-    # with prob eps select a random action
-    if rand < eps:
-        act = np.random.choice(np.arange(Q.outputs))
-
-    return (act, qval) if with_val else act
-
-
-def set_seed(seed: int = 13):
-    """
-    Sets a seed to ensure reproducibility
-    Parameters
-    ----------
-    seed
-        seed to be set
-    """
-
-    # torch related
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-    # others
-    np.random.seed(seed)
-    random.seed(seed)
+def get_estimator(action_num, device, input_ch=4, lin_size=32):
+    return nn.Sequential(
+        nn.Conv2d(input_ch, 8, kernel_size=3),
+        nn.ReLU(inplace=True),
+        nn.Conv2d(8, 8, kernel_size=3),
+        nn.ReLU(inplace=True),
+        View(),
+        nn.Linear(8 * 80 * 80, 8 * 80),
+        nn.ReLU(inplace=True),
+        nn.Linear(8 * 80, lin_size),
+        nn.ReLU(inplace=True),
+        nn.Linear(lin_size, action_num),
+    ).to(device)
