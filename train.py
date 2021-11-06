@@ -14,6 +14,8 @@ from src.ddqn_agent import DoubleDQN
 from src.dueling_agent import DuelingDQN
 from src.random_agent import RandomAgent
 
+DEFAULT_ARCHITECTURE = 'dueling'
+
 def _save_stats(episodic_returns, crt_step, path):
     # save the evaluation stats
     episodic_returns = torch.tensor(episodic_returns)
@@ -59,15 +61,9 @@ def _info(opt):
         + "with values between 0 and 1."
     )
 
-
-def main(opt):
-    _info(opt)
-    opt.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    env = Env("train", opt)
-    eval_env = Env("eval", opt)
-    warmup_steps = opt.steps / 10
-
-    if opt.net == 'dqn':
+def get_agent(architecture, env, warmup_steps, opt):
+    agent = None
+    if architecture == 'dqn':
         print("Using DQN net")
         net = NnModel(env.action_space.n).to(opt.device)
         agent = DQN(
@@ -79,7 +75,7 @@ def main(opt):
             warmup_steps=warmup_steps,
             update_steps=1,
         )
-    elif opt.net == 'ddqn':
+    elif architecture == 'ddqn':
         print("Using Double DQN net")
         net = NnModel(env.action_space.n).to(opt.device)
         agent = DoubleDQN(
@@ -92,7 +88,7 @@ def main(opt):
             update_steps=1,
             update_target_steps=4
         )
-    elif opt.net == 'dddqn':
+    elif architecture == 'dddqn':
         print("Using Dueling DDQN net")
         net = DuelingNnModel(env.action_space.n).to(opt.device)
         agent = DuelingDQN(
@@ -105,9 +101,20 @@ def main(opt):
             update_steps=1,
             update_target_steps=4
         )
-    elif opt.net == 'rand':
+    elif architecture == 'rand':
         print("Using random agent")
         agent = RandomAgent(env.action_space.n)
+
+    return agent
+
+def main(opt):
+    _info(opt)
+    opt.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    env = Env("train", opt)
+    eval_env = Env("eval", opt)
+    warmup_steps = opt.steps / 10
+
+    agent = get_agent(DEFAULT_ARCHITECTURE, env, warmup_steps, opt)
 
     ep_cnt, step_cnt, done = 0, 0, True
     while step_cnt < opt.steps or not done:
@@ -168,13 +175,6 @@ def get_options():
         default=5,
         metavar="N",
         help="Number of evaluation episodes to average over",
-    )
-    parser.add_argument(
-        "--net",
-        type=str,
-        default='dqn',
-        metavar="NET",
-        help="Type of DQN",
     )
 
     return parser.parse_args()
