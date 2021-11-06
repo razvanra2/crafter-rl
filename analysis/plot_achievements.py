@@ -84,6 +84,8 @@ def read_crafter_logs(indirpath, clip=True):
         avg_uni = avg_uni_by_agent[name]
         sns.lineplot(data=avg_tot, label="avg total achievements")
         sns.lineplot(data=avg_uni, label="avg unique achievements")
+        fig = plt.gcf()
+        fig.set_size_inches(15, 10)
         plt.savefig(f'out_figs/achievements_{name}_plot.png')
         plt.cla()
 

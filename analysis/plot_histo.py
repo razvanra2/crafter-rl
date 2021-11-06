@@ -48,15 +48,38 @@ def read_crafter_logs(indirpath, clip=True):
             else:
                 avgs[key] = res_key
 
-    keys_list = []
-    for key in avgs:
-        keys_list.append(key)
-        temp = [x / len(results) for x in avgs[key]]
-        avgs[key] = temp
+    keys_list = [
+        "reward",
+        "length",
+        "achievement_collect_coal",
+        "achievement_collect_diamond",
+        "achievement_collect_drink",
+        "achievement_collect_iron",
+        "achievement_collect_sapling",
+        "achievement_collect_stone",
+        "achievement_collect_wood",
+        "achievement_defeat_skeleton",
+        "achievement_defeat_zombie",
+        "achievement_eat_cow",
+
+        "achievement_eat_plant",
+        "achievement_make_iron_pickaxe",
+        "achievement_make_iron_sword",
+        "achievement_make_stone_pickaxe",
+
+        "achievement_make_stone_sword",
+        "achievement_make_wood_pickaxe",
+        "achievement_make_wood_sword",
+        "achievement_place_furnace",
+
+        "achievement_place_plant",
+        "achievement_place_stone",
+        "achievement_place_table",
+        "achievement_wake_up"
+    ]
 
     figure(figsize=(80, 60), dpi=80)
 
-    print(avgs)
     fig, axs = plt.subplots(4,6, figsize=(25,15))
     il = [0,1,2,3]
     jl = [0,1,2,3,4,5]
@@ -64,7 +87,7 @@ def read_crafter_logs(indirpath, clip=True):
 
     for i in il:
         for j in jl:
-            idx = i*4 + j
+            idx = i*6 + j
             target = keys_list[idx]
             axs[i][j].plot(avgs[target])
             axs[i][j].set_title(target)

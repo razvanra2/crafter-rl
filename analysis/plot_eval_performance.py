@@ -40,6 +40,9 @@ def read_crafter_logs(indirpath, clip=True):
     sns.lineplot(x="step", y="avg_return", data=df, label="avg r")
     sns.lineplot(x="step", y="min_return", data=df, label="min r")
     sns.lineplot(x="step", y="max_return", data=df, label="max_r")
+
+    fig = plt.gcf()
+    fig.set_size_inches(15, 10)
     plt.savefig(f'out_figs/single_{indirpath.split("/",1)[1]}_plot.png')
     plt.cla()
 

@@ -14,7 +14,7 @@ from src.ddqn_agent import DoubleDQN
 from src.dueling_agent import DuelingDQN
 from src.random_agent import RandomAgent
 
-DEFAULT_ARCHITECTURE = 'dueling'
+DEFAULT_ARCHITECTURE = 'rand'
 
 def _save_stats(episodic_returns, crt_step, path):
     # save the evaluation stats
@@ -99,7 +99,6 @@ def get_agent(architecture, env, warmup_steps, opt):
             update_target_steps=4
         )
     elif architecture == 'rand':
-        print("Using random agent")
         agent = RandomAgent(env.action_space.n)
 
     return agent

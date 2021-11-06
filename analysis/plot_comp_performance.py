@@ -41,6 +41,8 @@ def read_crafter_logs(indir, clip=True):
 
         df = pd.concat(runs, ignore_index=True)
         sns.lineplot(x="step", y="avg_return", data=df, legend="full", label = subdirpath.split("/",1)[1])
+    fig = plt.gcf()
+    fig.set_size_inches(15, 10)
     plt.savefig("out_figs/comparative_plot_avg.png")
     plt.cla()
 
@@ -63,6 +65,8 @@ def read_crafter_logs(indir, clip=True):
 
         df = pd.concat(runs, ignore_index=True)
         sns.lineplot(x="step", y="min_return", data=df, legend="full", label = subdirpath.split("/",1)[1])
+    fig = plt.gcf()
+    fig.set_size_inches(15, 10)
     plt.savefig("out_figs/comparative_plot_min.png")
     plt.cla()
 
@@ -85,6 +89,8 @@ def read_crafter_logs(indir, clip=True):
 
         df = pd.concat(runs, ignore_index=True)
         sns.lineplot(x="step", y="max_return", data=df, legend="full", label = subdirpath.split("/",1)[1])
+    fig = plt.gcf()
+    fig.set_size_inches(15, 10)
     plt.savefig("out_figs/comparative_plot_max.png")
     plt.cla()
 
