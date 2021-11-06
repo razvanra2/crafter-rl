@@ -64,7 +64,6 @@ def _info(opt):
 def get_agent(architecture, env, warmup_steps, opt):
     agent = None
     if architecture == 'dqn':
-        print("Using DQN net")
         net = NnModel(env.action_space.n).to(opt.device)
         agent = DQN(
             net,
@@ -76,7 +75,6 @@ def get_agent(architecture, env, warmup_steps, opt):
             update_steps=1,
         )
     elif architecture == 'ddqn':
-        print("Using Double DQN net")
         net = NnModel(env.action_space.n).to(opt.device)
         agent = DoubleDQN(
             net,
@@ -89,7 +87,6 @@ def get_agent(architecture, env, warmup_steps, opt):
             update_target_steps=4
         )
     elif architecture == 'dddqn':
-        print("Using Dueling DDQN net")
         net = DuelingNnModel(env.action_space.n).to(opt.device)
         agent = DuelingDQN(
             net,
