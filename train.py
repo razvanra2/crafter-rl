@@ -14,7 +14,7 @@ from src.ddqn_agent import DoubleDQN
 from src.dueling_agent import DuelingDQN
 from src.random_agent import RandomAgent
 
-DEFAULT_ARCHITECTURE = 'rand'
+DEFAULT_ARCHITECTURE = 'dddqn'
 
 def _save_stats(episodic_returns, crt_step, path):
     # save the evaluation stats
@@ -92,7 +92,7 @@ def get_agent(architecture, env, warmup_steps, opt):
             net,
             ReplayMemory(opt.device, size=1000, batch_size=32),
             O.Adam(net.parameters(), lr=1e-3, eps=1e-4),
-            get_epsilon_schedule(start=1.0, end=0.1, steps=opt.steps),
+            get_epsilon_schedule(start=1.0, end=0.0, steps=0.8 * opt.steps),
             env.action_space.n,
             warmup_steps=warmup_steps,
             update_steps=1,
